@@ -1,0 +1,91 @@
+
+for i = 1:numel(HFA_all_fold_sacc)%n of electrodes
+    tic
+    count=1;
+    for ii = 1:size(saccade,1)%n of saccades
+        
+        if strcmp(HFA_all_fold_sacc(i).dataset,saccade.patient_id(ii))==1
+            HFA_all_fold_sacc(i).return(count) = saccade.return150pix(ii);
+            count=count+1;
+        end
+    end
+    toc
+end
+
+
+for x = 1:numel(HFA_all_fold_sacc)
+    tic
+    curr_id = HFA_all_fold_sacc(x).dataset;
+
+count=1;
+for i = 1:size(saccade,1)
+    if strcmp(saccade.patient_id(i),curr_id)==1
+saccade_return(count,1) = saccade.return(i);
+saccade_return(count,2) = saccade.return100pix(i);
+saccade_return(count,3) = saccade.return150pix(i);
+count=count+1;
+    end
+end
+HFA_all_fold_sacc(x).return_prop150 = sum(saccade_return(:,3))/size(saccade_return,1);
+%HFA_all_fold_sacc(x).return = saccade_return; clear saccade_return;
+toc
+end
+
+
+for i = 1:numel(HFA_all_fold_sacc)
+    tic
+    % return_ind = find(HFA_all_fold_sacc(i).return(:,3)==1);
+    % no_return_ind = find(HFA_all_fold_sacc(i).return(:,3)==0);
+
+
+
+  return_ind = find(HFA_all_fold_sacc(i).return==1);
+    no_return_ind = find(HFA_all_fold_sacc(i).return==0);
+
+    HFA_return  = HFA_all_fold_sacc(i).per_sacc_start_smooth(return_ind,1:5:end);
+    HFA_no_return  = HFA_all_fold_sacc(i).per_sacc_start_smooth(no_return_ind,1:5:end);
+
+    %  HFA_return  = HFA_all_fold_sacc(i).per_sacc_start_smooth(return_ind,201:end);
+    % HFA_no_return  = HFA_all_fold_sacc(i).per_sacc_start_smooth(no_return_ind,201:end);
+%HFA is -200 to 0, relative to saccade onset
+    for ii = 1:size(HFA_return,2)
+        y = [HFA_return(:,ii)' HFA_no_return(:,ii)'];
+        group = {}; group(1:numel(HFA_return(:,ii))) = {'1'}; group((numel(HFA_return(:,ii))+1):(numel(HFA_return(:,ii))+numel(HFA_no_return(:,ii))))= {'2'};
+       
+        [p(ii)] = anova1(y',group','off');
+
+    end
+
+    for x = 1:100
+for ii = 1:size(HFA_return,2)
+        y_perm = y(randperm(numel(y)));
+        group = {}; group(1:numel(HFA_return(:,ii))) = {'1'}; group((numel(HFA_return(:,ii))+1):(numel(HFA_return(:,ii))+numel(HFA_no_return(:,ii))))= {'2'};
+       
+        [p_perm(x,ii)] = anova1(y_perm',group','off');
+
+    end
+    end
+
+    HFA_all_fold_sacc(i).p = p; clear p;
+     HFA_all_fold_sacc(i).p_perm = p_perm; clear p_perm;
+    toc
+end
+
+
+for i = 1:numel(HFA_all_fold_sacc)
+    p=HFA_all_fold_sacc(i).p;
+    p_perm=HFA_all_fold_sacc(i).p_perm;
+    sig = zeros(1,numel(p));
+    for ii = 1:size(p_perm,2)
+
+        curr_pctl = prctile(p_perm(:,ii),5);
+
+        if curr_pctl>p(ii)
+
+            sig(ii) = 1;
+
+        end
+
+    end
+    sig_all(i,:) = sig; clear sig;
+end
